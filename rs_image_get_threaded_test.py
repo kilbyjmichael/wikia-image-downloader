@@ -6,7 +6,7 @@ from os import path, mkdir
 import queue
 from threading import Thread
 
-data_file = 'rs_data.dat'
+data_file = 'rs_data.test'
 base_link = 'http://2007.runescape.wikia.com/api/v1/Articles/AsSimpleJson?id='
 dirname = 'rsimg'
 base_dir = '/'+ dirname +'/'
@@ -23,7 +23,7 @@ def queue_factory(data_file):
         que.put(base_link + row[0])
 
 def check_file_exists(filename):
-    if path.isfile(path.join(path.dirname(__file__) + base_dir) + filename):
+    if path.isfile(filename):
         print("FILE EXISTS")
         return True
     else:
@@ -34,28 +34,25 @@ def do_task():
         url = que.get()
         page = requests.get(url, timeout=None)
         data = json.loads(page.text)
+        title = data['sections'][0]['title'][0]
         try:
             image_url = data['sections'][0]['images'][0]['src']
             image_data = requests.get(image_url)
             img_filename = rfc6266.parse_requests_response(image_data).filename_unsafe
-            if check_file_exists(img_filename):
-                que.task_done()
-            if not check_file_exists(img_filename):
-                write_path = path.join(path.dirname(__file__) + base_dir + img_filename)
-                with open(write_path, 'wb') as img_file:
-                    img_file.write(image_data.content)
-                    img_file.close()
-                print("WROTE: " + write_path)
+            write_path = path.join(path.dirname(__file__) + base_dir + img_filename)
+            with open(write_path, 'wb') as img_file:
+                img_file.write(image_data.content)
+                img_file.close()
+                print("WROTE: " + title)
         except (IndexError, KeyError) as e:
-            #print("ERROR: " + title.rjust(20))
-            pass
+            print("ERROR: " + title.rjust(20))
     que.task_done()
 
 def main():
     check_img_dir() # this is to make sure the dir exists
     try:
         queue_factory(data_file)
-        for i in range(25): # aka number of threadtex
+        for i in range(5): # aka number of threadtex
             t1 = Thread(target = do_task) # target is the above function
             t1.start() # start the thread
         que.join()
